@@ -1,0 +1,1774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Tank Stars: Campaign Edition</title>
+<style>
+  :root {
+    --bg-dark: #14181f;
+    --panel-bg: rgba(24, 30, 38, 0.95);
+    --panel-border: #3a4556;
+    --accent-gold: #eab308;
+    --accent-orange: #f97316;
+    --accent-blue: #38bdf8;
+    --accent-red: #ef4444;
+    --accent-green: #22c55e;
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+  }
+
+  /* Top HUD */
+  #top-hud {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+    z-index: 10;
+    gap: 10px;
+  }
+
+  .player-card {
+    background: var(--panel-bg);
+    border: 2px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    min-width: 175px;
+    max-width: 240px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+    transition: border-color 0.25s, transform 0.25s;
+  }
+
+  .player-card.active-turn {
+    border-color: var(--accent-gold);
+    transform: translateY(2px);
+  }
+
+  .player-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 13px;
+    margin-bottom: 5px;
+    letter-spacing: 0.4px;
+  }
+
+  .tank-badge {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #2b3544;
+    color: #cbd5e1;
+    text-transform: uppercase;
+  }
+
+  .bar-wrap {
+    width: 100%;
+    height: 12px;
+    background: #0f1319;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #334155;
+    position: relative;
+  }
+
+  .hp-fill {
+    height: 100%;
+    transition: width 0.25s ease-out;
+  }
+
+  .hp-text {
+    position: absolute;
+    inset: 0;
+    font-size: 9px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    text-shadow: 0 1px 2px #000;
+  }
+
+  .status-tags {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    min-height: 14px;
+  }
+
+  .status-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: #0284c7;
+    color: #fff;
+  }
+
+  /* Center Wind & Turn Pill */
+  #center-hud {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    pointer-events: auto;
+  }
+
+  .wind-box {
+    background: var(--panel-bg);
+    border: 2px solid var(--panel-border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  }
+
+  .top-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .icon-btn {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text-main);
+    border-radius: 6px;
+    padding: 4px 9px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .icon-btn:hover {
+    background: #2b3544;
+  }
+
+  /* Bottom Control Dock */
+  #bottom-hud {
+    position: absolute;
+    bottom: 10px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 10px;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .control-panel {
+    background: var(--panel-bg);
+    border: 2px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 8px 12px;
+    pointer-events: auto;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+  }
+
+  /* Movement & Fuel */
+  #drive-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 145px;
+  }
+
+  .fuel-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent-gold);
+  }
+
+  .fuel-bar {
+    width: 100%;
+    height: 7px;
+    background: #0f1319;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .fuel-fill {
+    height: 100%;
+    background: var(--accent-gold);
+    width: 100%;
+  }
+
+  .drive-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .drive-btn {
+    flex: 1;
+    background: #283241;
+    border: 1px solid #475569;
+    color: #fff;
+    font-weight: 800;
+    font-size: 14px;
+    padding: 7px 0;
+    border-radius: 7px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .drive-btn:active {
+    background: var(--accent-gold);
+    color: #000;
+  }
+
+  /* Weapon Cards Deck */
+  #weapon-deck {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    max-width: 52vw;
+    padding-bottom: 2px;
+  }
+
+  .weapon-card {
+    background: #1e2631;
+    border: 2px solid #3f4d61;
+    border-radius: 8px;
+    padding: 6px 9px;
+    min-width: 96px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.15s, border-color 0.15s;
+    position: relative;
+  }
+
+  .weapon-card:hover:not(.used) {
+    transform: translateY(-2px);
+    border-color: #94a3b8;
+  }
+
+  .weapon-card.selected {
+    border-color: var(--accent-gold);
+    background: #2b3545;
+  }
+
+  .weapon-card.used {
+    opacity: 0.38;
+    cursor: not-allowed;
+    filter: grayscale(1);
+  }
+
+  .weapon-card.ultimate {
+    border-color: #f97316;
+    background: #33221a;
+  }
+
+  .w-name {
+    font-size: 11px;
+    font-weight: 800;
+    color: #f8fafc;
+    line-height: 1.2;
+  }
+
+  .w-tag {
+    font-size: 9px;
+    color: var(--accent-gold);
+    font-weight: 700;
+    margin-top: 3px;
+    text-transform: uppercase;
+  }
+
+  /* Aim & Fire */
+  #fire-panel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .aim-sliders {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .slider-row span {
+    min-width: 58px;
+  }
+
+  input[type="range"] {
+    width: 85px;
+    accent-color: var(--accent-gold);
+    cursor: pointer;
+  }
+
+  #fire-btn {
+    background: linear-gradient(180deg, #f97316, #dc2626);
+    border: 2px solid #fdba74;
+    color: #fff;
+    font-weight: 900;
+    font-size: 15px;
+    letter-spacing: 0.8px;
+    padding: 14px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.45);
+    transition: transform 0.1s;
+  }
+
+  #fire-btn:active {
+    transform: scale(0.95);
+  }
+
+  #fire-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  /* Modal / Garage / Campaign Screen */
+  .overlay-modal {
+    position: absolute;
+    inset: 0;
+    background: rgba(13, 17, 23, 0.90);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 16px;
+  }
+
+  .modal-card {
+    background: #1b222c;
+    border: 2px solid #3e4c5e;
+    border-radius: 14px;
+    max-width: 840px;
+    width: 100%;
+    padding: 20px;
+    box-shadow: 0 12px 35px rgba(0,0,0,0.65);
+    max-height: 94vh;
+    overflow-y: auto;
+  }
+
+  .modal-title {
+    font-size: 24px;
+    font-weight: 900;
+    text-align: center;
+    color: var(--accent-gold);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .modal-sub {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+
+  .coin-badge {
+    background: #232b38;
+    border: 1px solid var(--accent-gold);
+    color: var(--accent-gold);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 800;
+    font-size: 13px;
+    display: inline-block;
+    margin-bottom: 12px;
+  }
+
+  .setup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .setup-box {
+    background: #131820;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .setup-box h3 {
+    font-size: 13px;
+    text-transform: uppercase;
+    color: var(--accent-blue);
+    margin-bottom: 8px;
+  }
+
+  .option-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  .pill-btn {
+    background: #232c39;
+    border: 1px solid #475569;
+    color: #e2e8f0;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    flex: 1;
+    text-align: center;
+  }
+
+  .pill-btn.active {
+    background: var(--accent-gold);
+    color: #0f172a;
+    border-color: #fef08a;
+  }
+
+  .tank-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .tank-option {
+    background: #1d2530;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    padding: 8px;
+    cursor: pointer;
+  }
+
+  .tank-option.selected {
+    border-color: var(--accent-gold);
+    background: #283342;
+  }
+
+  .tank-option-title {
+    font-weight: 800;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .tank-option-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+  }
+
+  /* Level Select Grid */
+  .level-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .level-card {
+    background: #18202b;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+
+  .level-card:hover:not(.locked) {
+    transform: translateY(-2px);
+    border-color: var(--accent-gold);
+  }
+
+  .level-card.locked {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: #11151c;
+  }
+
+  .level-card.selected {
+    border-color: var(--accent-green);
+    background: #1e293b;
+  }
+
+  .level-num {
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--accent-gold);
+  }
+
+  .level-enemy {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    text-transform: uppercase;
+  }
+
+  .start-btn {
+    width: 100%;
+    background: linear-gradient(180deg, #22c55e, #15803d);
+    border: 2px solid #86efac;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 900;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    letter-spacing: 0.8px;
+    margin-top: 8px;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  @media (max-width: 760px) {
+    .setup-grid { grid-template-columns: 1fr; }
+    .level-grid { grid-template-columns: repeat(3, 1fr); }
+    #weapon-deck { max-width: 100%; order: -1; width: 100%; }
+    #bottom-hud { justify-content: center; }
+    .player-card { min-width: 130px; padding: 6px 8px; }
+  }
+</style>
+</head>
+<body>
+<div id="game-container">
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Top HUD -->
+  <div id="top-hud">
+    <div class="player-card" id="p1-card">
+      <div class="player-header">
+        <span id="p1-name">PLAYER 1</span>
+        <span class="tank-badge" id="p1-tank-badge">ABRAMS</span>
+      </div>
+      <div class="bar-wrap">
+        <div class="hp-fill" id="p1-hp-bar" style="width: 100%; background: #22c55e;"></div>
+        <div class="hp-text" id="p1-hp-text">1000 / 1000</div>
+      </div>
+      <div class="status-tags" id="p1-status"></div>
+    </div>
+
+    <div id="center-hud">
+      <div class="wind-box">
+        <span>WIND</span>
+        <span id="wind-display">0 MPH •</span>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" id="btn-sound" title="Toggle Sound">SFX: ON</button>
+        <button class="icon-btn" id="btn-fs" title="Fullscreen">FULLSCREEN</button>
+        <button class="icon-btn" id="btn-menu" title="Garage / Campaign">MENU</button>
+      </div>
+    </div>
+
+    <div class="player-card" id="p2-card">
+      <div class="player-header">
+        <span id="p2-name">CPU ENEMY</span>
+        <span class="tank-badge" id="p2-tank-badge">FROST</span>
+      </div>
+      <div class="bar-wrap">
+        <div class="hp-fill" id="p2-hp-bar" style="width: 100%; background: #ef4444;"></div>
+        <div class="hp-text" id="p2-hp-text">1050 / 1050</div>
+      </div>
+      <div class="status-tags" id="p2-status"></div>
+    </div>
+  </div>
+
+  <!-- Bottom HUD -->
+  <div id="bottom-hud">
+    <div class="control-panel" id="drive-panel">
+      <div class="fuel-row">
+        <span>FUEL</span>
+        <span id="fuel-pct">100%</span>
+      </div>
+      <div class="fuel-bar"><div class="fuel-fill" id="fuel-fill"></div></div>
+      <div class="drive-btns">
+        <button class="drive-btn" id="btn-left">◀ A</button>
+        <button class="drive-btn" id="btn-right">D ▶</button>
+      </div>
+    </div>
+
+    <div class="control-panel" id="weapon-deck"></div>
+
+    <div class="control-panel" id="fire-panel">
+      <div class="aim-sliders">
+        <div class="slider-row">
+          <span id="angle-label">ANG: 45°</span>
+          <input type="range" id="angle-slider" min="0" max="180" value="45">
+        </div>
+        <div class="slider-row">
+          <span id="power-label">PWR: 65%</span>
+          <input type="range" id="power-slider" min="15" max="100" value="65">
+        </div>
+      </div>
+      <button id="fire-btn">FIRE</button>
+    </div>
+  </div>
+
+  <!-- Garage & Level Select Modal -->
+  <div class="overlay-modal" id="setup-modal">
+    <div class="modal-card">
+      <div class="modal-title">TANK STARS: CAMPAIGN & ARMORY</div>
+      <div class="modal-sub">Conquer all 10 campaign levels or battle in quick skirmish mode</div>
+      <div style="text-align: center;">
+        <div class="coin-badge" id="player-coins-badge">🪙 500 COINS</div>
+      </div>
+
+      <div class="setup-grid">
+        <div class="setup-box">
+          <h3>1. Game Mode</h3>
+          <div class="option-row" id="mode-options">
+            <button class="pill-btn active" data-mode="campaign">10-Level Campaign</button>
+            <button class="pill-btn" data-mode="skirmish">Quick Skirmish</button>
+          </div>
+
+          <div id="campaign-select-wrap">
+            <h3 style="margin-top: 10px;">Select Campaign Level (1 - 10)</h3>
+            <div class="level-grid" id="level-grid"></div>
+          </div>
+
+          <div id="skirmish-options-wrap" class="hidden" style="margin-top: 10px;">
+            <h3>Skirmish Difficulty</h3>
+            <div class="option-row" id="diff-options">
+              <button class="pill-btn" data-diff="cadet">Cadet</button>
+              <button class="pill-btn active" data-diff="veteran">Veteran</button>
+              <button class="pill-btn" data-diff="general">General</button>
+            </div>
+            <h3 style="margin-top: 10px;">Arena Biome</h3>
+            <div class="option-row" id="biome-options">
+              <button class="pill-btn active" data-biome="highland">Highland</button>
+              <button class="pill-btn" data-biome="arctic">Arctic</button>
+              <button class="pill-btn" data-biome="canyon">Canyon</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="setup-box">
+          <h3>2. Choose Your Tank</h3>
+          <div class="tank-grid" id="p1-tank-select"></div>
+        </div>
+      </div>
+
+      <button class="start-btn" id="start-battle-btn">DEPLOY TO BATTLEFIELD</button>
+    </div>
+  </div>
+
+  <!-- Game Over Modal -->
+  <div class="overlay-modal hidden" id="gameover-modal">
+    <div class="modal-card" style="max-width: 440px; text-align: center;">
+      <div class="modal-title" id="winner-title">VICTORY!</div>
+      <div class="modal-sub" id="winner-sub">Mission completed successfully.</div>
+      <div class="coin-badge" id="reward-badge" style="margin: 10px 0;">+250 COINS EARNED</div>
+      <button class="start-btn" id="next-level-btn">NEXT LEVEL / REMATCH</button>
+      <button class="pill-btn" id="back-garage-btn" style="width:100%; margin-top:8px; padding:10px;">CAMPAIGN MENU</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // --- SAVE DATA / PROGRESSION ---
+  let saveData = JSON.parse(localStorage.getItem('tank_stars_save')) || {
+    coins: 500,
+    unlockedLevel: 1
+  };
+  function saveGame() {
+    localStorage.setItem('tank_stars_save', JSON.stringify(saveData));
+  }
+
+  // --- SOUND SYNTHESIZER ---
+  class SoundEngine {
+    constructor() {
+      this.ctx = null;
+      this.enabled = true;
+    }
+    init() {
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) this.ctx = new AudioCtx();
+      }
+      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    }
+    playShoot(type = 'standard') {
+      if (!this.enabled) return;
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type === 'laser' ? 'sawtooth' : 'triangle';
+      osc.frequency.setValueAtTime(type === 'laser' ? 880 : 220, now);
+      osc.frequency.exponentialRampToValueAtTime(45, now + 0.25);
+      gain.gain.setValueAtTime(0.28, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.27);
+    }
+    playExplosion(size = 1) {
+      if (!this.enabled) return;
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const duration = Math.min(0.9, 0.3 + size * 0.2);
+      const bufferSize = this.ctx.sampleRate * duration;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.35));
+      }
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(420, now);
+      filter.frequency.exponentialRampToValueAtTime(60, now + duration);
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(Math.min(0.5, 0.25 * size), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+      noise.start(now);
+    }
+    playCrate() {
+      if (!this.enabled) return;
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      [523.25, 659.25, 783.99].forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+        gain.gain.setValueAtTime(0.16, now + idx * 0.07);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now + idx * 0.07);
+        osc.stop(now + idx * 0.07 + 0.19);
+      });
+    }
+  }
+  const sfx = new SoundEngine();
+
+  // --- GAME DEFINITIONS ---
+  const BIOMES = {
+    highland: { name: 'Highland', skyTop: '#334e68', skyBot: '#829ab1', mountain: '#243b53', groundTop: '#3f7d20', groundFill: '#3b2f2f' },
+    arctic:   { name: 'Arctic',   skyTop: '#1e3a5f', skyBot: '#bae6fd', mountain: '#475569', groundTop: '#e2e8f0', groundFill: '#334155' },
+    canyon:   { name: 'Canyon',   skyTop: '#7c2d12', skyBot: '#fdba74', mountain: '#9a3412', groundTop: '#d97706', groundFill: '#451a03' }
+  };
+
+  const WEAPONS = {
+    standard: { id: 'standard', name: 'Heavy Shell', tag: 'Single • 190 DMG', damage: 190, radius: 46, count: 1, speedMult: 1.0, windMult: 1.0, color: '#facc15', type: 'normal' },
+    volley:   { id: 'volley',   name: '4x Volley',   tag: 'Burst • 4x65 DMG', damage: 65,  radius: 30, count: 4, speedMult: 0.98, windMult: 1.1, color: '#fb923c', type: 'burst' },
+    splitter: { id: 'splitter', name: 'Splitter',    tag: 'Apex Split • 3x105', damage: 105, radius: 36, count: 1, speedMult: 1.0, windMult: 1.0, color: '#38bdf8', type: 'split' },
+    vertical: { id: 'vertical', name: 'Vertical Slam', tag: 'Drop • 250 DMG', damage: 250, radius: 52, count: 1, speedMult: 1.0, windMult: 0.6, color: '#f43f5e', type: 'slam' },
+    iceShard: { id: 'iceShard', name: 'Cryo Shard',  tag: 'Slows Fuel • 175', damage: 175, radius: 48, count: 1, speedMult: 1.02, windMult: 0.9, color: '#7dd3fc', type: 'freeze' },
+    solar:    { id: 'solar',    name: 'Solar Flare', tag: 'High Arc • 230',   damage: 230, radius: 56, count: 1, speedMult: 1.04, windMult: 0.8, color: '#fde047', type: 'normal' },
+    railgun:  { id: 'railgun',  name: 'Rail Piercer',tag: 'Fast/No Wind • 210', damage: 210, radius: 32, count: 1, speedMult: 1.38, windMult: 0.0, color: '#a78bfa', type: 'laser' },
+    nuke:     { id: 'nuke',     name: 'Mini Nuke',   tag: 'Huge Crater • 290', damage: 290, radius: 78, count: 1, speedMult: 0.94, windMult: 1.0, color: '#4ade80', type: 'nuke' },
+    orbital:  { id: 'orbital',  name: 'Orbital Strike', tag: 'CRATE ULT • 360', damage: 360, radius: 85, count: 1, speedMult: 1.05, windMult: 0.0, color: '#f97316', type: 'orbital', ultimate: true }
+  };
+
+  const TANKS = {
+    abrams: { id: 'abrams', name: 'Abrams', hp: 1000, color: '#4d7c0f', turretColor: '#365314', desc: 'Balanced frontline tank with versatile artillery.', deck: ['standard', 'volley', 'splitter', 'vertical', 'railgun', 'nuke'] },
+    frost:  { id: 'frost',  name: 'Frost',  hp: 1050, color: '#0284c7', turretColor: '#0369a1', desc: 'Cryo armor. Freezes enemies to cut their fuel in half.', deck: ['iceShard', 'splitter', 'standard', 'railgun', 'vertical', 'nuke'] },
+    helios: { id: 'helios', name: 'Helios', hp: 950,  color: '#d97706', turretColor: '#b45309', desc: 'Solar striker with high-velocity plasma and rail shots.', deck: ['solar', 'railgun', 'volley', 'splitter', 'standard', 'nuke'] },
+    toxic:  { id: 'toxic',  name: 'Toxic',  hp: 980,  color: '#16a34a', turretColor: '#14532d', desc: 'Bio hazard tank with toxic splash damage.', deck: ['standard', 'volley', 'iceShard', 'vertical', 'railgun', 'nuke'] },
+    spectre:{ id: 'spectre',name: 'Spectre',hp: 920,  color: '#9333ea', turretColor: '#581c87', desc: 'Stealth cruiser with high-speed precision strikes.', deck: ['railgun', 'solar', 'splitter', 'volley', 'standard', 'nuke'] },
+    atomic: { id: 'atomic', name: 'Atomic', hp: 1150, color: '#3f3f46', turretColor: '#18181b', desc: 'Heavy dreadnought built for massive destruction.', deck: ['nuke', 'vertical', 'splitter', 'standard', 'solar', 'railgun'] }
+  };
+
+  // --- 10 CAMPAIGN LEVELS ---
+  const CAMPAIGN_MISSIONS = [
+    { level: 1, name: "Training Grounds", enemyTank: 'abrams', biome: 'highland', diff: 'cadet', hp: 800, reward: 120 },
+    { level: 2, name: "Frosty Ridge",      enemyTank: 'frost',  biome: 'arctic',   diff: 'cadet', hp: 920, reward: 160 },
+    { level: 3, name: "Solar Outpost",     enemyTank: 'helios', biome: 'canyon',   diff: 'veteran', hp: 1040, reward: 210 },
+    { level: 4, name: "Toxic Basin",       enemyTank: 'toxic',  biome: 'highland', diff: 'veteran', hp: 1150, reward: 270 },
+    { level: 5, name: "Spectre Ridge",     enemyTank: 'spectre',biome: 'arctic',   diff: 'veteran', hp: 1280, reward: 340 },
+    { level: 6, name: "Atomic Stronghold", enemyTank: 'atomic', biome: 'canyon',   diff: 'general', hp: 1420, reward: 420 },
+    { level: 7, name: "Glacial Assault",   enemyTank: 'frost',  biome: 'arctic',   diff: 'general', hp: 1580, reward: 520 },
+    { level: 8, name: "Solar Zenith",      enemyTank: 'helios', biome: 'canyon',   diff: 'general', hp: 1750, reward: 640 },
+    { level: 9, name: "Dreadnought Vale",  enemyTank: 'toxic',  biome: 'highland', diff: 'general', hp: 1940, reward: 800 },
+    { level: 10, name: "General's Fortress", enemyTank: 'atomic', biome: 'canyon',  diff: 'general', hp: 2200, reward: 1200 }
+  ];
+
+  // --- STATE ---
+  const state = {
+    mode: 'campaign', // 'campaign' or 'skirmish'
+    currentLevel: 1,
+    difficulty: 'veteran',
+    biome: 'highland',
+    p1TankId: 'abrams',
+    width: 1200,
+    height: 700,
+    terrain: [],
+    players: [],
+    turn: 0,
+    wind: 0,
+    phase: 'aim',
+    projectiles: [],
+    particles: [],
+    floatingTexts: [],
+    crates: [],
+    turnCount: 1,
+    shake: 0,
+    draggingAim: false
+  };
+
+  // --- SETUP UI ---
+  function initSetupUI() {
+    document.getElementById('player-coins-badge').textContent = `🪙 ${saveData.coins} COINS`;
+
+    // Mode Toggle
+    document.querySelectorAll('#mode-options .pill-btn').forEach(btn => {
+      btn.onclick = () => {
+        state.mode = btn.dataset.mode;
+        document.querySelectorAll('#mode-options .pill-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('campaign-select-wrap').classList.toggle('hidden', state.mode !== 'campaign');
+        document.getElementById('skirmish-options-wrap').classList.toggle('hidden', state.mode !== 'skirmish');
+      };
+    });
+
+    // Level Grid
+    const levelGrid = document.getElementById('level-grid');
+    levelGrid.innerHTML = '';
+    CAMPAIGN_MISSIONS.forEach(m => {
+      const isUnlocked = m.level <= saveData.unlockedLevel;
+      const div = document.createElement('div');
+      div.className = 'level-card' + (!isUnlocked ? ' locked' : '') + (m.level === state.currentLevel ? ' selected' : '');
+      div.innerHTML = `
+        <div class="level-num">Lvl ${m.level}</div>
+        <div class="level-enemy">${m.enemyTank}</div>
+      `;
+      div.onclick = () => {
+        if (!isUnlocked) return;
+        state.currentLevel = m.level;
+        initSetupUI();
+      };
+      levelGrid.appendChild(div);
+    });
+
+    // Skirmish Difficulty & Biome
+    document.querySelectorAll('#diff-options .pill-btn').forEach(btn => {
+      btn.onclick = () => {
+        state.difficulty = btn.dataset.diff;
+        document.querySelectorAll('#diff-options .pill-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      };
+    });
+
+    document.querySelectorAll('#biome-options .pill-btn').forEach(btn => {
+      btn.onclick = () => {
+        state.biome = btn.dataset.biome;
+        document.querySelectorAll('#biome-options .pill-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      };
+    });
+
+    // Tank Selection
+    const p1Grid = document.getElementById('p1-tank-select');
+    p1Grid.innerHTML = '';
+    Object.values(TANKS).forEach(t => {
+      const div = document.createElement('div');
+      div.className = 'tank-option' + (state.p1TankId === t.id ? ' selected' : '');
+      div.innerHTML = `
+        <div class="tank-option-title">
+          <span style="color:${t.color}">${t.name}</span>
+          <span style="font-size:11px;color:#94a3b8">${t.hp} HP</span>
+        </div>
+        <div class="tank-option-desc">${t.desc}</div>
+      `;
+      div.onclick = () => {
+        state.p1TankId = t.id;
+        initSetupUI();
+      };
+      p1Grid.appendChild(div);
+    });
+  }
+
+  // --- TERRAIN & PHYSICS ---
+  function generateTerrain() {
+    const w = state.width;
+    const h = state.height;
+    state.terrain = new Float32Array(w);
+    const base = h * 0.62;
+    const f1 = 0.004 + Math.random() * 0.003;
+    const f2 = 0.011 + Math.random() * 0.005;
+    const p1 = Math.random() * Math.PI * 2;
+    const p2 = Math.random() * Math.PI * 2;
+
+    for (let x = 0; x < w; x++) {
+      let y = base
+        + Math.sin(x * f1 + p1) * (h * 0.13)
+        + Math.cos(x * f2 + p2) * (h * 0.05);
+      if (x < 220) y = y * 0.7 + (base + 20) * 0.3;
+      if (x > w - 220) y = y * 0.7 + (base + 20) * 0.3;
+      state.terrain[x] = Math.max(h * 0.32, Math.min(h * 0.86, y));
+    }
+  }
+
+  function getTerrainY(x) {
+    const ix = Math.max(0, Math.min(state.width - 1, Math.round(x)));
+    return state.terrain[ix];
+  }
+
+  function getTerrainSlope(x) {
+    const x1 = Math.max(0, Math.round(x - 12));
+    const x2 = Math.min(state.width - 1, Math.round(x + 12));
+    return Math.atan2(state.terrain[x2] - state.terrain[x1], x2 - x1);
+  }
+
+  function carveCrater(cx, cy, radius) {
+    const minX = Math.max(0, Math.floor(cx - radius));
+    const maxX = Math.min(state.width - 1, Math.ceil(cx + radius));
+    for (let x = minX; x <= maxX; x++) {
+      const dx = x - cx;
+      const depth = Math.sqrt(Math.max(0, radius * radius - dx * dx));
+      const craterBottom = cy + depth * 0.85;
+      if (craterBottom > state.terrain[x]) {
+        state.terrain[x] = Math.min(state.height - 25, craterBottom);
+      }
+    }
+  }
+
+  // --- START MATCH ---
+  function startMatch() {
+    sfx.init();
+    resizeCanvas();
+    generateTerrain();
+
+    let enemyTankId, enemyHp, missionReward;
+    if (state.mode === 'campaign') {
+      const mission = CAMPAIGN_MISSIONS.find(m => m.level === state.currentLevel) || CAMPAIGN_MISSIONS[0];
+      state.biome = mission.biome;
+      state.difficulty = mission.diff;
+      enemyTankId = mission.enemyTank;
+      enemyHp = mission.hp;
+      missionReward = mission.reward;
+    } else {
+      enemyTankId = 'frost';
+      enemyHp = 1050;
+      missionReward = 150;
+    }
+
+    const t1 = TANKS[state.p1TankId];
+    const t2 = TANKS[enemyTankId];
+
+    state.players = [
+      {
+        index: 0,
+        name: 'PLAYER 1',
+        isAI: false,
+        tank: t1,
+        x: Math.round(state.width * 0.16),
+        y: 0,
+        angle: 45,
+        power: 68,
+        hp: t1.hp,
+        maxHp: t1.hp,
+        fuel: 100,
+        frozenTurns: 0,
+        recoil: 0,
+        deck: t1.deck.map(wId => ({ weaponId: wId, used: false })),
+        selectedCardIdx: 0
+      },
+      {
+        index: 1,
+        name: state.mode === 'campaign' ? `Lvl ${state.currentLevel} CPU` : `CPU (${state.difficulty.toUpperCase()})`,
+        isAI: true,
+        tank: t2,
+        x: Math.round(state.width * 0.84),
+        y: 0,
+        angle: 135,
+        power: 68,
+        hp: enemyHp,
+        maxHp: enemyHp,
+        fuel: 100,
+        frozenTurns: 0,
+        recoil: 0,
+        deck: t2.deck.map(wId => ({ weaponId: wId, used: false })),
+        selectedCardIdx: 0,
+        reward: missionReward
+      }
+    ];
+
+    state.players.forEach(p => { p.y = getTerrainY(p.x); });
+    state.turn = 0;
+    state.turnCount = 1;
+    state.projectiles = [];
+    state.particles = [];
+    state.floatingTexts = [];
+    state.crates = [];
+    state.phase = 'aim';
+    rollWind();
+
+    document.getElementById('setup-modal').classList.add('hidden');
+    document.getElementById('gameover-modal').classList.add('hidden');
+    updateHUD();
+  }
+
+  function rollWind() {
+    state.wind = Math.round((Math.random() * 2 - 1) * 18);
+  }
+
+  function spawnCrate() {
+    const margin = 180;
+    const x = Math.round(margin + Math.random() * (state.width - margin * 2));
+    const types = ['ultimate', 'repair', 'restock'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    state.crates.push({ x, y: 40, vy: 1.6, landed: false, type });
+    addFloatingText(x, 80, 'SUPPLY DROP!', '#eab308');
+  }
+
+  function addFloatingText(x, y, text, color = '#fff') {
+    state.floatingTexts.push({ x, y, text, color, life: 1.0 });
+  }
+
+  // --- HUD & CONTROLS ---
+  function updateHUD() {
+    const p1 = state.players[0];
+    const p2 = state.players[1];
+    if (!p1 || !p2) return;
+
+    document.getElementById('p1-name').textContent = p1.name;
+    document.getElementById('p1-tank-badge').textContent = p1.tank.name;
+    document.getElementById('p1-hp-bar').style.width = `${Math.max(0, (p1.hp / p1.maxHp) * 100)}%`;
+    document.getElementById('p1-hp-text').textContent = `${Math.max(0, Math.round(p1.hp))} / ${p1.maxHp}`;
+
+    document.getElementById('p2-name').textContent = p2.name;
+    document.getElementById('p2-tank-badge').textContent = p2.tank.name;
+    document.getElementById('p2-hp-bar').style.width = `${Math.max(0, (p2.hp / p2.maxHp) * 100)}%`;
+    document.getElementById('p2-hp-text').textContent = `${Math.max(0, Math.round(p2.hp))} / ${p2.maxHp}`;
+
+    document.getElementById('p1-card').classList.toggle('active-turn', state.turn === 0);
+    document.getElementById('p2-card').classList.toggle('active-turn', state.turn === 1);
+
+    document.getElementById('p1-status').innerHTML = p1.frozenTurns > 0 ? `<span class="status-tag">CHILLED (${p1.frozenTurns})</span>` : '';
+    document.getElementById('p2-status').innerHTML = p2.frozenTurns > 0 ? `<span class="status-tag">CHILLED (${p2.frozenTurns})</span>` : '';
+
+    const windEl = document.getElementById('wind-display');
+    if (state.wind === 0) windEl.textContent = '0 MPH • CALM';
+    else if (state.wind > 0) windEl.textContent = `${state.wind} MPH ➔`;
+    else windEl.textContent = `⬅ ${Math.abs(state.wind)} MPH`;
+
+    const active = state.players[state.turn];
+    document.getElementById('fuel-pct').textContent = `${Math.round(active.fuel)}%`;
+    document.getElementById('fuel-fill').style.width = `${active.fuel}%`;
+
+    document.getElementById('angle-slider').value = Math.round(active.angle);
+    document.getElementById('angle-label').textContent = `ANG: ${Math.round(active.angle)}°`;
+    document.getElementById('power-slider').value = Math.round(active.power);
+    document.getElementById('power-label').textContent = `PWR: ${Math.round(active.power)}%`;
+
+    const isHumanTurn = state.phase === 'aim' && !active.isAI;
+    document.getElementById('fire-btn').disabled = !isHumanTurn;
+
+    renderWeaponDeck(active, isHumanTurn);
+  }
+
+  function renderWeaponDeck(player, interactive) {
+    const deckEl = document.getElementById('weapon-deck');
+    deckEl.innerHTML = '';
+
+    if (player.deck.every(c => c.used)) {
+      player.deck.forEach(c => { c.used = false; });
+      addFloatingText(player.x, player.y - 50, 'DECK RESTOCKED!', '#38bdf8');
+    }
+
+    if (player.deck[player.selectedCardIdx]?.used) {
+      const nextIdx = player.deck.findIndex(c => !c.used);
+      if (nextIdx !== -1) player.selectedCardIdx = nextIdx;
+    }
+
+    player.deck.forEach((card, idx) => {
+      const w = WEAPONS[card.weaponId];
+      const div = document.createElement('div');
+      div.className = 'weapon-card'
+        + (idx === player.selectedCardIdx && !card.used ? ' selected' : '')
+        + (card.used ? ' used' : '')
+        + (w.ultimate ? ' ultimate' : '');
+      div.innerHTML = `
+        <div class="w-name">${w.name}</div>
+        <div class="w-tag">${card.used ? 'EXPENDED' : w.tag}</div>
+      `;
+      div.onclick = () => {
+        if (!interactive || card.used) return;
+        player.selectedCardIdx = idx;
+        updateHUD();
+      };
+      deckEl.appendChild(div);
+    });
+  }
+
+  // --- MOVEMENT & CRATES ---
+  const keys = { left: false, right: false };
+
+  function moveActiveTank(dir) {
+    if (state.phase !== 'aim') return;
+    const p = state.players[state.turn];
+    if (p.isAI || p.fuel <= 0) return;
+
+    const speed = 2.1;
+    const nextX = Math.max(35, Math.min(state.width - 35, p.x + dir * speed));
+    const slope = getTerrainSlope(nextX);
+    if (Math.abs(slope) > 1.15 && (nextX - p.x) * slope < 0) return;
+
+    p.x = nextX;
+    p.y = getTerrainY(p.x);
+    p.fuel = Math.max(0, p.fuel - 0.85);
+    checkCratePickup(p);
+    updateHUD();
+  }
+
+  function checkCratePickup(player) {
+    for (let i = state.crates.length - 1; i >= 0; i--) {
+      const c = state.crates[i];
+      if (Math.abs(player.x - c.x) < 34 && Math.abs(player.y - c.y) < 36) {
+        sfx.playCrate();
+        if (c.type === 'ultimate') {
+          player.deck.unshift({ weaponId: 'orbital', used: false });
+          player.selectedCardIdx = 0;
+          addFloatingText(player.x, player.y - 45, '+ ORBITAL STRIKE!', '#f97316');
+        } else if (c.type === 'repair') {
+          const heal = 240;
+          player.hp = Math.min(player.maxHp, player.hp + heal);
+          addFloatingText(player.x, player.y - 45, `+${heal} HP REPAIR!`, '#22c55e');
+        } else {
+          player.deck.forEach(card => { card.used = false; });
+          addFloatingText(player.x, player.y - 45, 'FULL AMMO RESTOCK!', '#38bdf8');
+        }
+        state.crates.splice(i, 1);
+        updateHUD();
+      }
+    }
+  }
+
+  // --- FIRING & PROJECTILES ---
+  function fireWeapon() {
+    if (state.phase !== 'aim' && state.phase !== 'ai_thinking') return;
+    const p = state.players[state.turn];
+    const card = p.deck[p.selectedCardIdx];
+    if (!card || card.used) return;
+
+    const weapon = WEAPONS[card.weaponId];
+    card.used = true;
+    state.phase = 'firing';
+    p.recoil = 8;
+
+    const rad = (p.angle * Math.PI) / 180;
+    const baseSpeed = (p.power / 100) * 19.5 * weapon.speedMult;
+    const muzzleX = p.x + Math.cos(rad) * 24;
+    const muzzleY = p.y - 16 - Math.sin(rad) * 24;
+
+    const shots = weapon.count;
+    for (let i = 0; i < shots; i++) {
+      const spread = shots > 1 ? (i - (shots - 1) / 2) * 0.045 : 0;
+      const delay = i * 9;
+      state.projectiles.push({
+        owner: p.index,
+        weapon,
+        x: muzzleX,
+        y: muzzleY,
+        vx: Math.cos(rad + spread) * baseSpeed,
+        vy: -Math.sin(rad + spread) * baseSpeed,
+        delay,
+        hasSplit: false,
+        slammed: false,
+        trail: []
+      });
+    }
+
+    sfx.playShoot(weapon.type === 'laser' ? 'laser' : 'standard');
+    updateHUD();
+  }
+
+  function explodeAt(x, y, weapon) {
+    sfx.playExplosion(weapon.radius / 45);
+    state.shake = Math.min(18, weapon.radius * 0.24);
+    carveCrater(x, y, weapon.radius);
+
+    const count = Math.round(weapon.radius * 0.8);
+    for (let i = 0; i < count; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = 1 + Math.random() * 6;
+      state.particles.push({
+        x, y,
+        vx: Math.cos(ang) * spd,
+        vy: Math.sin(ang) * spd - 2,
+        life: 1.0,
+        decay: 0.025 + Math.random() * 0.025,
+        size: 3 + Math.random() * 5,
+        color: i % 2 === 0 ? weapon.color : '#f97316'
+      });
+    }
+
+    state.players.forEach(target => {
+      const dist = Math.hypot(target.x - x, (target.y - 12) - y);
+      const hitRadius = weapon.radius + 22;
+      if (dist <= hitRadius) {
+        const falloff = Math.max(0.25, 1 - (dist / hitRadius) * 0.72);
+        const dmg = Math.round(weapon.damage * falloff);
+        target.hp = Math.max(0, target.hp - dmg);
+        addFloatingText(target.x, target.y - 42, `-${dmg}`, '#ef4444');
+
+        if (weapon.type === 'freeze') {
+          target.frozenTurns = 2;
+          addFloatingText(target.x, target.y - 62, 'CHILLED!', '#38bdf8');
+        }
+      }
+    });
+
+    if (weapon.type === 'orbital') {
+      for (let k = -2; k <= 2; k++) carveCrater(x + k * 24, y, 36);
+    }
+  }
+
+  function endTurn() {
+    const p1Dead = state.players[0].hp <= 0;
+    const p2Dead = state.players[1].hp <= 0;
+    if (p1Dead || p2Dead) {
+      state.phase = 'gameover';
+      const p1Won = !p1Dead;
+      
+      let rewardText = '';
+      if (p1Won) {
+        const reward = state.players[1].reward || 150;
+        saveData.coins += reward;
+        rewardText = `+${reward} COINS EARNED!`;
+        if (state.mode === 'campaign' && state.currentLevel === saveData.unlockedLevel && saveData.unlockedLevel < CAMPAIGN_MISSIONS.length) {
+          saveData.unlockedLevel++;
+        }
+        saveGame();
+      }
+
+      document.getElementById('winner-title').textContent = p1Won ? 'VICTORY!' : 'DEFEAT!';
+      document.getElementById('winner-sub').textContent = p1Won ? 'Enemy tank destroyed successfully.' : 'Your tank was destroyed.';
+      document.getElementById('reward-badge').textContent = rewardText;
+      document.getElementById('gameover-modal').classList.remove('hidden');
+      updateHUD();
+      return;
+    }
+
+    state.turn = state.turn === 0 ? 1 : 0;
+    state.turnCount++;
+    rollWind();
+
+    if (state.turnCount % 3 === 0 && state.crates.length < 2) spawnCrate();
+
+    const nextPlayer = state.players[state.turn];
+    if (nextPlayer.frozenTurns > 0) {
+      nextPlayer.fuel = 45;
+      nextPlayer.frozenTurns--;
+    } else {
+      nextPlayer.fuel = 100;
+    }
+
+    if (nextPlayer.isAI) {
+      state.phase = 'ai_thinking';
+      updateHUD();
+      setTimeout(runAITurn, 650);
+    } else {
+      state.phase = 'aim';
+      updateHUD();
+    }
+  }
+
+  // --- CPU AI LOGIC ---
+  function runAITurn() {
+    if (state.phase !== 'ai_thinking') return;
+    const ai = state.players[1];
+    const target = state.players[0];
+
+    let bestIdx = ai.deck.findIndex(c => !c.used && WEAPONS[c.weaponId].ultimate);
+    if (bestIdx === -1) {
+      const available = ai.deck.map((c, idx) => ({ c, idx })).filter(o => !o.c.used);
+      if (available.length > 0) bestIdx = available[Math.floor(Math.random() * available.length)].idx;
+    }
+    if (bestIdx !== -1) ai.selectedCardIdx = bestIdx;
+    const weapon = WEAPONS[ai.deck[ai.selectedCardIdx].weaponId];
+
+    let bestErr = Infinity;
+    let bestAngle = 135;
+    let bestPower = 70;
+    const gravity = 0.28;
+    const windAcc = state.wind * 0.0022 * weapon.windMult;
+
+    for (let ang = 105; ang <= 165; ang += 3) {
+      for (let pwr = 25; pwr <= 100; pwr += 3) {
+        const rad = (ang * Math.PI) / 180;
+        const spd = (pwr / 100) * 19.5 * weapon.speedMult;
+        let sx = ai.x + Math.cos(rad) * 24;
+        let sy = ai.y - 16 - Math.sin(rad) * 24;
+        let vx = Math.cos(rad) * spd;
+        let vy = -Math.sin(rad) * spd;
+
+        for (let t = 0; t < 260; t++) {
+          vx += windAcc;
+          vy += gravity;
+          sx += vx;
+          sy += vy;
+          if (sx < 0 || sx >= state.width) break;
+          if (sy >= getTerrainY(sx)) {
+            const err = Math.hypot(sx - target.x, sy - target.y);
+            if (err < bestErr) {
+              bestErr = err;
+              bestAngle = ang;
+              bestPower = pwr;
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    const jitterMap = { cadet: 9, veteran: 3.5, general: 1.2 };
+    const jitter = jitterMap[state.difficulty] || 3.5;
+    ai.angle = Math.max(95, Math.min(175, bestAngle + (Math.random() * 2 - 1) * jitter));
+    ai.power = Math.max(20, Math.min(100, bestPower + (Math.random() * 2 - 1) * jitter));
+    updateHUD();
+    setTimeout(fireWeapon, 350);
+  }
+
+  // --- MAIN LOOP ---
+  function update() {
+    if (keys.left) moveActiveTank(-1);
+    if (keys.right) moveActiveTank(1);
+
+    state.players.forEach(p => {
+      const groundY = getTerrainY(p.x);
+      if (p.y < groundY) p.y = Math.min(groundY, p.y + 4);
+      else p.y = groundY;
+      if (p.recoil > 0) p.recoil = Math.max(0, p.recoil - 0.6);
+    });
+
+    state.crates.forEach(c => {
+      if (!c.landed) {
+        c.y += c.vy;
+        const gy = getTerrainY(c.x);
+        if (c.y >= gy) { c.y = gy; c.landed = true; }
+      } else {
+        c.y = getTerrainY(c.x);
+      }
+      state.players.forEach(p => checkCratePickup(p));
+    });
+
+    const gravity = 0.28;
+    for (let i = state.projectiles.length - 1; i >= 0; i--) {
+      const proj = state.projectiles[i];
+      if (proj.delay > 0) { proj.delay--; continue; }
+
+      const windAcc = state.wind * 0.0022 * proj.weapon.windMult;
+      const prevVy = proj.vy;
+      proj.vx += windAcc;
+      proj.vy += gravity;
+      proj.x += proj.vx;
+      proj.y += proj.vy;
+
+      proj.trail.push({ x: proj.x, y: proj.y });
+      if (proj.trail.length > 16) proj.trail.shift();
+
+      if (proj.weapon.type === 'split' && !proj.hasSplit && prevVy < 0 && proj.vy >= 0) {
+        proj.hasSplit = true;
+        [-1.8, 1.8].forEach(dvx => {
+          state.projectiles.push({
+            owner: proj.owner, weapon: proj.weapon, x: proj.x, y: proj.y,
+            vx: proj.vx + dvx, vy: proj.vy, delay: 0, hasSplit: true, trail: []
+          });
+        });
+      }
+
+      if (proj.x < -40 || proj.x > state.width + 40 || proj.y > state.height + 40) {
+        state.projectiles.splice(i, 1);
+        continue;
+      }
+
+      let hit = false;
+      state.players.forEach(t => {
+        if (t.index !== proj.owner && Math.hypot(t.x - proj.x, (t.y - 12) - proj.y) < 20) hit = true;
+      });
+
+      if (hit || proj.y >= getTerrainY(proj.x)) {
+        explodeAt(proj.x, Math.min(proj.y, getTerrainY(proj.x)), proj.weapon);
+        state.projectiles.splice(i, 1);
+      }
+    }
+
+    if (state.phase === 'firing' && state.projectiles.length === 0) endTurn();
+
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+      const pt = state.particles[i];
+      pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.14; pt.life -= pt.decay;
+      if (pt.life <= 0) state.particles.splice(i, 1);
+    }
+
+    for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+      const ft = state.floatingTexts[i];
+      ft.y -= 0.7; ft.life -= 0.018;
+      if (ft.life <= 0) state.floatingTexts.splice(i, 1);
+    }
+
+    if (state.shake > 0) state.shake = Math.max(0, state.shake - 0.9);
+  }
+
+  function draw() {
+    const biome = BIOMES[state.biome];
+    ctx.save();
+    if (state.shake > 0) ctx.translate((Math.random() - 0.5) * state.shake, (Math.random() - 0.5) * state.shake);
+
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, state.height);
+    skyGrad.addColorStop(0, biome.skyTop);
+    skyGrad.addColorStop(1, biome.skyBot);
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, state.width, state.height);
+
+    ctx.fillStyle = biome.mountain;
+    ctx.beginPath();
+    ctx.moveTo(0, state.height);
+    for (let x = 0; x <= state.width; x += 60) {
+      const my = state.height * 0.48 + Math.sin(x * 0.005) * 65 + Math.cos(x * 0.012) * 30;
+      ctx.lineTo(x, my);
+    }
+    ctx.lineTo(state.width, state.height);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = biome.groundFill;
+    ctx.beginPath();
+    ctx.moveTo(0, state.height);
+    for (let x = 0; x < state.width; x++) ctx.lineTo(x, state.terrain[x]);
+    ctx.lineTo(state.width, state.height);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = biome.groundTop;
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    for (let x = 0; x < state.width; x += 2) {
+      if (x === 0) ctx.moveTo(x, state.terrain[x] + 2);
+      else ctx.lineTo(x, state.terrain[x] + 2);
+    }
+    ctx.stroke();
+
+    const active = state.players[state.turn];
+    if (active && state.phase === 'aim' && !active.isAI) drawTrajectoryPreview(active);
+
+    state.crates.forEach(c => {
+      ctx.fillStyle = c.type === 'ultimate' ? '#f97316' : (c.type === 'repair' ? '#22c55e' : '#eab308');
+      ctx.fillRect(c.x - 11, c.y - 22, 22, 22);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(c.x - 11, c.y - 22, 22, 22);
+    });
+
+    state.players.forEach(p => drawTank(p));
+
+    state.projectiles.forEach(proj => {
+      if (proj.delay > 0) return;
+      ctx.strokeStyle = proj.weapon.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      proj.trail.forEach((pt, idx) => {
+        if (idx === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      });
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(proj.x, proj.y, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    state.particles.forEach(pt => {
+      ctx.globalAlpha = Math.max(0, pt.life);
+      ctx.fillStyle = pt.color;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    state.floatingTexts.forEach(ft => {
+      ctx.globalAlpha = Math.max(0, ft.life);
+      ctx.font = '900 15px Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#000';
+      ctx.fillText(ft.text, ft.x + 1, ft.y + 1);
+      ctx.fillStyle = ft.color;
+      ctx.fillText(ft.text, ft.x, ft.y);
+    });
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+  }
+
+  function drawTrajectoryPreview(player) {
+    const weapon = WEAPONS[player.deck[player.selectedCardIdx].weaponId];
+    const rad = (player.angle * Math.PI) / 180;
+    const speed = (player.power / 100) * 19.5 * weapon.speedMult;
+    let sx = player.x + Math.cos(rad) * 24;
+    let sy = player.y - 16 - Math.sin(rad) * 24;
+    let vx = Math.cos(rad) * speed;
+    let vy = -Math.sin(rad) * speed;
+    const gravity = 0.28;
+    const windAcc = state.wind * 0.0022 * weapon.windMult;
+
+    for (let step = 0; step < 48; step++) {
+      vx += windAcc;
+      vy += gravity;
+      sx += vx;
+      sy += vy;
+      if (step % 3 === 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.85 - step / 55})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (sy >= getTerrainY(sx)) break;
+    }
+  }
+
+  function drawTank(p) {
+    const slope = getTerrainSlope(p.x);
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(slope * 0.75);
+
+    const rad = (p.angle * Math.PI) / 180 - slope * 0.75;
+    const barrelLen = 25 - p.recoil;
+    ctx.strokeStyle = p.tank.turretColor;
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, -15);
+    ctx.lineTo(Math.cos(rad) * barrelLen, -15 - Math.sin(rad) * barrelLen);
+    ctx.stroke();
+
+    ctx.fillStyle = p.tank.turretColor;
+    ctx.beginPath();
+    ctx.arc(0, -14, 11, Math.PI, 0);
+    ctx.fill();
+
+    ctx.fillStyle = p.tank.color;
+    ctx.beginPath();
+    ctx.roundRect(-20, -14, 40, 10, 4);
+    ctx.fill();
+
+    ctx.fillStyle = '#18181b';
+    ctx.beginPath();
+    ctx.roundRect(-22, -6, 44, 7, 3.5);
+    ctx.fill();
+
+    ctx.fillStyle = '#71717a';
+    [-14, -5, 5, 14].forEach(wx => {
+      ctx.beginPath();
+      ctx.arc(wx, -2.5, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.restore();
+
+    if (state.turn === p.index && state.phase === 'aim') {
+      const bob = Math.sin(Date.now() * 0.008) * 4;
+      ctx.fillStyle = '#eab308';
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - 40 + bob);
+      ctx.lineTo(p.x - 6, p.y - 49 + bob);
+      ctx.lineTo(p.x + 6, p.y - 49 + bob);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // --- INPUT & CONTROLS ---
+  function handlePointerAim(clientX, clientY) {
+    if (state.phase !== 'aim') return;
+    const p = state.players[state.turn];
+    if (p.isAI) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mx = clientX - rect.left;
+    const my = clientY - rect.top;
+
+    const dx = mx - p.x;
+    const dy = (p.y - 16) - my;
+    let deg = (Math.atan2(dy, dx) * 180) / Math.PI;
+    if (deg < 0) deg = dx >= 0 ? 0 : 180;
+    deg = Math.max(0, Math.min(180, deg));
+
+    const dist = Math.hypot(dx, dy);
+    const pwr = Math.max(15, Math.min(100, Math.round((dist / 260) * 100)));
+
+    p.angle = deg;
+    p.power = pwr;
+    updateHUD();
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    if (state.phase !== 'aim' || state.players[state.turn]?.isAI) return;
+    state.draggingAim = true;
+    handlePointerAim(e.clientX, e.clientY);
+  });
+
+  window.addEventListener('pointermove', e => {
+    if (state.draggingAim) handlePointerAim(e.clientX, e.clientY);
+  });
+
+  window.addEventListener('pointerup', () => { state.draggingAim = false; });
+
+  document.getElementById('angle-slider').addEventListener('input', e => {
+    if (state.phase !== 'aim') return;
+    state.players[state.turn].angle = Number(e.target.value);
+    updateHUD();
+  });
+
+  document.getElementById('power-slider').addEventListener('input', e => {
+    if (state.phase !== 'aim') return;
+    state.players[state.turn].power = Number(e.target.value);
+    updateHUD();
+  });
+
+  document.getElementById('fire-btn').addEventListener('click', fireWeapon);
+
+  const btnLeft = document.getElementById('btn-left');
+  const btnRight = document.getElementById('btn-right');
+  btnLeft.addEventListener('pointerdown', () => { keys.left = true; });
+  btnLeft.addEventListener('pointerup', () => { keys.left = false; });
+  btnRight.addEventListener('pointerdown', () => { keys.right = true; });
+  btnRight.addEventListener('pointerup', () => { keys.right = false; });
+
+  window.addEventListener('keydown', e => {
+    if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.left = true;
+    if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.right = true;
+    if (e.key === ' ' && state.phase === 'aim' && !state.players[state.turn]?.isAI) {
+      e.preventDefault();
+      fireWeapon();
+    }
+  });
+
+  window.addEventListener('keyup', e => {
+    if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.left = false;
+    if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.right = false;
+  });
+
+  document.getElementById('btn-sound').onclick = () => {
+    sfx.enabled = !sfx.enabled;
+    document.getElementById('btn-sound').textContent = `SFX: ${sfx.enabled ? 'ON' : 'OFF'}`;
+  };
+
+  document.getElementById('btn-fs').onclick = () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    else document.exitFullscreen().catch(() => {});
+  };
+
+  document.getElementById('btn-menu').onclick = () => {
+    initSetupUI();
+    document.getElementById('setup-modal').classList.remove('hidden');
+  };
+
+  document.getElementById('start-battle-btn').onclick = startMatch;
+  document.getElementById('next-level-btn').onclick = () => {
+    if (state.mode === 'campaign' && state.currentLevel < CAMPAIGN_MISSIONS.length && state.currentLevel < saveData.unlockedLevel) {
+      state.currentLevel++;
+    }
+    startMatch();
+  };
+  document.getElementById('back-garage-btn').onclick = () => {
+    document.getElementById('gameover-modal').classList.add('hidden');
+    initSetupUI();
+    document.getElementById('setup-modal').classList.remove('hidden');
+  };
+
+  function resizeCanvas() {
+    state.width = window.innerWidth;
+    state.height = window.innerHeight;
+    canvas.width = state.width;
+    canvas.height = state.height;
+  }
+
+  window.addEventListener('resize', () => {
+    const oldW = state.width;
+    const oldTerrain = state.terrain;
+    resizeCanvas();
+    if (oldTerrain.length > 0) {
+      const nextTerrain = new Float32Array(state.width);
+      for (let x = 0; x < state.width; x++) {
+        const srcX = Math.min(oldTerrain.length - 1, Math.floor((x / state.width) * oldW));
+        nextTerrain[x] = oldTerrain[srcX];
+      }
+      state.terrain = nextTerrain;
+      state.players.forEach(p => {
+        p.x = Math.round((p.x / oldW) * state.width);
+        p.y = getTerrainY(p.x);
+      });
+    }
+  });
+
+  resizeCanvas();
+  initSetupUI();
+  loop();
+})();
+</script>
+</body>
+</html>
